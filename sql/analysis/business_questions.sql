@@ -1,5 +1,5 @@
 -- The 8 business questions, answered against the star schema.
--- Run after sql/gold/03_product_bridge.sql (question 7 needs the bridge).
+-- Run after sql/gold/03_load_gold.sql.
 
 -- Q1. Which manufacturers are making the highest payments to physicians?
 SELECT m.manufacturer_name, m.manufacturer_state,
