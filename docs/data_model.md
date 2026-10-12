@@ -118,9 +118,9 @@ Row counts include the placeholder rows.
 | `dim_recipient` | 1,022,577 | `recipient_profile_id` | Physicians and non-physician practitioners |
 | `dim_teaching_hospital` | 1,298 | `teaching_hospital_id` | Hospital payments |
 | `dim_manufacturer` | 1,758 | `manufacturer_id` | |
-| `dim_product` | 12,040 | `product_bk` (md5) | One row per distinct product |
+| `dim_product` | 9,764 | `(product_type, product_name)` | One row per product type and name |
 | `bridge_payment_product` | 19,465,411 | `(payment_key, product_slot)` | Payment → product with `product_share` |
-| `dim_travel` | 9,287 | city / state / country | `N/A` row = no travel |
+| `dim_travel` | 9,295 | city / state / country | `N/A` row = no travel |
 | `dim_payment_flags` | 102 | combination of indicators | Junk dimension |
 | `dim_payment_nature` | 16 | `payment_nature` | |
 | `dim_payment_form` | 6 | `payment_form` | |
@@ -135,16 +135,21 @@ is `NOT NULL`. A hospital payment has no physician and a physician payment has n
 Date and manufacturer have a `-1` Unknown member. Travel, flags, nature, form and recipient type use an
 `N/A` or `Unknown` row loaded from the data.
 
-## Cleaning, standardization, deduplication
+## Cleaning
 
-All of it happens once, in the `gold.stg_general` materialized view (Step 2 of
-`sql/gold/02_transform_and_load.sql`); the raw table is never modified.
+The raw table is all text and is never modified. `sql/gold/02_stage_payments.sql` reads it once and writes two
+staging tables, using plain SQL (`TRIM`, `NULLIF`, `INITCAP`, `UPPER`, `TO_DATE`, casts):
 
-- Whitespace collapsed and trimmed; names title-cased; US states upper-cased to two letters.
-- Dates parsed from `MM/DD/YYYY`; money and counts stripped of non-numeric characters and typed.
-- IDs cast with `safe_bigint()`, which returns NULL instead of failing the load on malformed values.
-- Deduplication: `DISTINCT ON (record_id)`, keeping the most recently published version.
-- Indicator columns normalised to `Yes` / `No` / `N/A` before they are folded into `dim_payment_flags`.
+- `gold.stg_payments`: one row per payment, with blanks turned into NULL or `N/A`, dates parsed from
+  `MM/DD/YYYY`, ids and amounts cast to numbers, and names and cities title-cased.
+- `gold.stg_payment_products`: one row per payment and product, made by unpivoting the five product columns.
+
+The load step then builds the dimensions from these tables. Where a dimension row appears on many payments,
+the attributes from the most recently published payment are used.
+
+The source data was checked first: every id, date and amount is well formed, there are no duplicate
+`Record_ID` values, and the Yes/No indicators are already `Yes` or `No`, so no further repair or
+deduplication is needed.
 
 ## Known limitations
 
@@ -159,4 +164,8 @@ All of it happens once, in the `gold.stg_general` materialized view (Step 2 of
    which dominates some rankings. Worth a note when presenting results.
 5. **Identifier truncation.** Postgres caps identifiers at 63 characters, so two long raw column names are
    silently truncated. Queries work, but an explicit full-name column list or a port to another engine would break.
-6. **Not modelled:** the contextual free-text column and the third-party entity name.
+6. **Product names are as reported.** A product is identified by its type and name, so the category, NDC and PDI
+   on `dim_product` come from its latest payment. Placeholder names such as `NA` or `N.A.` exist in the source
+   and are kept as separate products.
+7. **Not modelled:** the contextual free-text column, the third-party entity name, the recipient's separate
+   first/middle/last name columns (only `full_name` is kept), address line 2, province, postal code and license state.

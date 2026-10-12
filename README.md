@@ -39,7 +39,7 @@ erDiagram
 | `dim_payment_nature` / `dim_payment_form` | what the payment was for, and how it was paid |
 | `dim_travel` | travel city, state and country |
 | `dim_payment_flags` | junk dimension for the Yes/No indicator columns |
-| `dim_product` | individual drugs, biologicals, devices and supplies |
+| `dim_product` | individual drugs, biologicals, devices and supplies (one row per product type and name) |
 | `lkp_recipient_type` | recipient type as it was on the payment |
 | `bridge_payment_product` | payment → product (a payment can list up to five products) |
 
@@ -71,9 +71,9 @@ docs/data_model.md                       model diagram, design notes, known limi
 sql/
 ├── raw/01_create_raw_table.sql          raw landing table (all TEXT)
 ├── gold/
-│   ├── 01_create_gold_tables.sql        star-schema DDL (keys, constraints, indexes)
-│   ├── 02_transform_and_load.sql        clean + deduplicate + load dimensions and fact
-│   └── 03_product_bridge.sql            product dimension + payment→product bridge
+│   ├── 01_create_gold_tables.sql        create the empty star-schema tables
+│   ├── 02_stage_payments.sql            clean the raw table (trim, convert types, unpivot products)
+│   └── 03_load_gold.sql                 load dimensions, fact and bridge, then add keys and indexes
 ├── analysis/business_questions.sql      the 8 KPI queries
 └── diagram/star_schema_diagram.sql      MySQL-dialect script to redraw the model in drawSQL
 ```
@@ -86,10 +86,10 @@ PSQL="psql -h localhost -p 5433 -U postgres -d datamodeling -v ON_ERROR_STOP=1"
 
 $PSQL -f sql/raw/01_create_raw_table.sql               # then load the CMS file into raw_layer.open_payments_general
 $PSQL -f sql/gold/01_create_gold_tables.sql
-$PSQL -f sql/gold/02_transform_and_load.sql
-$PSQL -f sql/gold/03_product_bridge.sql
+$PSQL -f sql/gold/02_stage_payments.sql
+$PSQL -f sql/gold/03_load_gold.sql
 $PSQL -f sql/analysis/business_questions.sql
 ```
 
-Scripts 02 and 03 rebuild their tables from the raw data on every run. The full load is heavy at 16M rows
+To reload, start again from script 01, which recreates the empty tables. The full load is heavy at 16M rows
 (the product bridge alone writes about 19M rows), so expect it to take a while.

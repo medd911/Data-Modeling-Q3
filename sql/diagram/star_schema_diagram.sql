@@ -1,6 +1,6 @@
 -- Star schema diagram script (MySQL dialect), for drawing the gold model in drawSQL.
 -- Paste into drawSQL -> Import -> MySQL. For the diagram only:
--- the deployable PostgreSQL DDL is sql/gold/01_create_gold_tables.sql and sql/gold/03_product_bridge.sql.
+-- the PostgreSQL tables are created by sql/gold/01_create_gold_tables.sql.
 
 CREATE TABLE dim_date (
     date_key        INT PRIMARY KEY,
@@ -8,7 +8,6 @@ CREATE TABLE dim_date (
     day_of_month    SMALLINT,
     month_number    SMALLINT,
     month_name      VARCHAR(20),
-    month_short     VARCHAR(3),
     quarter_number  SMALLINT,
     quarter_name    VARCHAR(10),
     year_number     SMALLINT,
@@ -16,40 +15,30 @@ CREATE TABLE dim_date (
     year_quarter    VARCHAR(10),
     day_of_week     SMALLINT,
     day_name        VARCHAR(20),
-    week_of_year    SMALLINT,
     is_weekend      BOOLEAN
 );
 
 CREATE TABLE dim_manufacturer (
-    manufacturer_key              BIGINT PRIMARY KEY,
-    manufacturer_id               VARCHAR(30) UNIQUE,
-    manufacturer_name             VARCHAR(300),
-    submitting_manufacturer_name  VARCHAR(300),
-    manufacturer_state            VARCHAR(10),
-    manufacturer_country          VARCHAR(100)
+    manufacturer_key      BIGINT PRIMARY KEY,
+    manufacturer_id       VARCHAR(30) UNIQUE,
+    manufacturer_name     VARCHAR(300),
+    manufacturer_state    VARCHAR(10),
+    manufacturer_country  VARCHAR(100)
 );
 
 CREATE TABLE dim_recipient (
     recipient_key         BIGINT PRIMARY KEY,
     recipient_profile_id  BIGINT UNIQUE,
     recipient_npi         BIGINT,
-    first_name            VARCHAR(100),
-    middle_name           VARCHAR(100),
-    last_name             VARCHAR(100),
-    name_suffix           VARCHAR(20),
     full_name             VARCHAR(300),
     recipient_type        VARCHAR(60),
     primary_type          VARCHAR(200),
     specialty             VARCHAR(300),
-    license_state         VARCHAR(10),
     address_line1         VARCHAR(200),
-    address_line2         VARCHAR(200),
     city                  VARCHAR(100),
     state_code            VARCHAR(10),
     zip_code              VARCHAR(20),
-    country               VARCHAR(100),
-    province              VARCHAR(100),
-    postal_code           VARCHAR(30)
+    country               VARCHAR(100)
 );
 
 CREATE TABLE dim_teaching_hospital (
@@ -99,7 +88,6 @@ CREATE TABLE lkp_recipient_type (
 
 CREATE TABLE dim_product (
     product_key       BIGINT PRIMARY KEY,
-    product_bk        CHAR(32) UNIQUE,
     product_name      VARCHAR(300),
     product_type      VARCHAR(50),
     product_category  VARCHAR(300),
